@@ -1,0 +1,9 @@
+{
+  "name": "Parallel — bilingual reading",
+  "short_name": "Parallel",
+  "description": "Read in Russian or German with the English original one tap away.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f0e7",
+  "theme_color": "#405a4b"
+}
