@@ -200,6 +200,7 @@ body[data-theme="night"] {
   --sage:#91a397;
   --sage-dark:#a9b9ae;
   --coral:#d59b79;
+  color:var(--ink);
   color-scheme:dark;
   background:#202321;
 }
