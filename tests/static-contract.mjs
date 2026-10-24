@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8");
 const app = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
 const worker = readFileSync(new URL("../dist/sw.js", import.meta.url), "utf8");
+const css = readFileSync(new URL("../dist/styles.css", import.meta.url), "utf8");
 
 const styleVersion = html.match(/styles\.css\?v=(\d+)/)?.[1];
 const scriptVersion = html.match(/app\.js\?v=(\d+)/)?.[1];
@@ -14,5 +15,8 @@ assert.match(worker, new RegExp(`styles\\.css\\?v=${styleVersion}`), "The servic
 assert.match(worker, new RegExp(`app\\.js\\?v=${scriptVersion}`), "The service worker must cache the versioned JavaScript.");
 assert.equal((html.match(/data-theme-toggle/g) || []).length, 2, "Theme controls must exist in the library and reader.");
 assert.match(app, /\$\$\('\[data-theme-toggle\]'\).*addEventListener\('click'/, "Theme controls must have a click handler.");
+
+const nightBodyRule = css.match(/body\[data-theme="night"\]\s*\{([\s\S]*?)\}/)?.[1] || "";
+assert.match(nightBodyRule, /color\s*:\s*var\(--ink\)/, "Dark mode must explicitly apply its ink colour to the whole page.");
 
 console.log(`Static contract passed for asset version ${scriptVersion}.`);
