@@ -44,6 +44,25 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 let currentBook = books["alice-ru"];
 let currentSentence = null;
 let speechRate = .9;
+let previousLightTheme = localStorage.getItem("parallel-light-theme") || "eink";
+
+function applyTheme(theme, persist = true) {
+  if (theme !== "night") {
+    previousLightTheme = theme;
+    if (persist) localStorage.setItem("parallel-light-theme", theme);
+  }
+  document.body.dataset.theme = theme;
+  $$(".theme-dot").forEach((button) => button.classList.toggle("active", button.dataset.theme === theme));
+  $$('[data-theme-toggle]').forEach((button) => {
+    const dark = theme === "night";
+    button.setAttribute("aria-label", dark ? "Switch to e-paper mode" : "Switch to dark mode");
+    button.title = dark ? "E-paper mode" : "Dark mode";
+  });
+  if (persist) localStorage.setItem("parallel-theme", theme);
+}
+
+const savedTheme = localStorage.getItem("parallel-theme");
+if (["eink", "white", "night"].includes(savedTheme)) applyTheme(savedTheme, false);
 
 function showScreen(name) {
   $$(".screen").forEach((el) => el.classList.remove("active"));
@@ -124,7 +143,8 @@ $("#readerSettingsButton").addEventListener("click", () => { closePanels(); $("#
 $("#closeSettings").addEventListener("click", closePanels);
 $("#fontSizeInput").addEventListener("input", (e) => { document.documentElement.style.setProperty("--reading-size", `${e.target.value}px`); $("#fontSizeOutput").textContent=e.target.value; });
 $("#speechRateInput").addEventListener("input", (e) => { speechRate=Number(e.target.value); $("#speechRateOutput").textContent=`${speechRate.toFixed(1)}×`; });
-$$('.theme-dot').forEach((b)=>b.addEventListener('click',()=>{$$('.theme-dot').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.body.dataset.theme=b.dataset.theme;}));
+$$('.theme-dot').forEach((button)=>button.addEventListener('click',()=>applyTheme(button.dataset.theme)));
+$$('[data-theme-toggle]').forEach((button)=>button.addEventListener('click',()=>applyTheme(document.body.dataset.theme === "night" ? previousLightTheme : "night")));
 $$('.segmented button').forEach((button)=>button.addEventListener('click',()=>{$$('.segmented button').forEach(x=>x.classList.remove('active'));button.classList.add('active');filterBooks();}));
 $("#searchInput").addEventListener("input", filterBooks);
 $("#searchButton").addEventListener("click",()=>{$("#searchInput").focus();$("#searchField").scrollIntoView({behavior:"smooth",block:"center"});});
