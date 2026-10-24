@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="./styles.css" />
     <title>Parallel — bilingual reading</title>
   </head>
-  <body>
+  <body data-theme="eink">
     <div id="app">
       <header class="topbar">
         <button class="wordmark" id="homeButton" aria-label="Open library">
@@ -141,7 +141,7 @@
         <div class="sheet-topline"><strong>Reading settings</strong><button class="icon-button" id="closeSettings" aria-label="Close"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></svg></button></div>
         <label>Text size <output id="fontSizeOutput">21</output><input id="fontSizeInput" type="range" min="17" max="29" value="21" /></label>
         <label>Speech speed <output id="speechRateOutput">0.9×</output><input id="speechRateInput" type="range" min="0.6" max="1.2" value="0.9" step="0.1" /></label>
-        <div class="theme-options"><span>Page colour</span><button class="theme-dot active" data-theme="paper" aria-label="Paper"></button><button class="theme-dot" data-theme="white" aria-label="White"></button><button class="theme-dot" data-theme="night" aria-label="Night"></button></div>
+        <div class="theme-options"><span>Page colour</span><button class="theme-dot active" data-theme="eink" aria-label="E-paper" title="E-paper"></button><button class="theme-dot" data-theme="white" aria-label="White" title="White"></button><button class="theme-dot" data-theme="night" aria-label="Night" title="Night"></button></div>
       </aside>
 
       <div class="modal" id="importModal" role="dialog" aria-modal="true" aria-labelledby="importTitle" aria-hidden="true">
