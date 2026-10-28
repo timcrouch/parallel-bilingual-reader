@@ -1,5 +1,5 @@
-const CACHE = "parallel-v9";
-const ASSETS = ["./", "./index.html", "./styles.css?v=9", "./app.js?v=9", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./books/catalog.json?v=9"];
+const CACHE = "parallel-v10";
+const ASSETS = ["./", "./index.html", "./styles.css?v=10", "./app.js?v=10", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./books/catalog.json?v=10"];
 self.addEventListener("install", (event) => event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(ASSETS)).then(() => self.skipWaiting())));
 self.addEventListener("activate", (event) => event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener("fetch", (event) => event.respondWith(

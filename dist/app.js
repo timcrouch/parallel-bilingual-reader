@@ -7,6 +7,9 @@ let currentBook = null;
 let currentBookId = null;
 let currentChapterIndex = 0;
 let currentSentence = null;
+let sheetHistoryEntry = false;
+let pointerIsDown = false;
+let selectionTimer = null;
 let speechRate = .9;
 let previousLightTheme = localStorage.getItem("parallel-light-theme") || "eink";
 
@@ -102,7 +105,7 @@ function renderContinueCard(book) {
 
 async function loadCatalog() {
   try {
-    const response = await fetch("./books/catalog.json?v=9");
+    const response = await fetch("./books/catalog.json?v=10");
     if (!response.ok) throw new Error(`Library returned ${response.status}`);
     catalog = (await response.json()).books;
     renderLibrary();
@@ -117,7 +120,7 @@ async function loadBook(id) {
   if (bookCache.has(id)) return bookCache.get(id);
   const metadata = catalog.find((book) => book.id === id);
   if (!metadata) throw new Error(`Unknown book: ${id}`);
-  const response = await fetch(`${metadata.path}?v=9`);
+  const response = await fetch(`${metadata.path}?v=10`);
   if (!response.ok) throw new Error(`Book returned ${response.status}`);
   const book = await response.json();
   bookCache.set(id, book);
@@ -162,13 +165,25 @@ function renderChapter() {
   chapter.paragraphs.forEach((paragraph) => {
     const element = document.createElement("p");
     paragraph.forEach(([target, english]) => {
-      const button = document.createElement("button");
-      button.className = "sentence";
-      button.textContent = `${target} `;
-      button.dataset.target = target;
-      button.dataset.english = english;
-      button.addEventListener("click", () => openTranslation(button));
-      element.appendChild(button);
+      const sentence = document.createElement("span");
+      sentence.className = "sentence";
+      sentence.textContent = target;
+      sentence.tabIndex = 0;
+      sentence.setAttribute("role", "button");
+      sentence.dataset.target = target;
+      sentence.dataset.english = english;
+      sentence.addEventListener("click", () => {
+        // A tap opens the sentence; finishing a text selection is handled separately.
+        if (hasReaderSelection()) return;
+        openTranslation(sentence);
+      });
+      sentence.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openTranslation(sentence);
+        }
+      });
+      element.append(sentence, " ");
     });
     content.appendChild(element);
   });
@@ -190,13 +205,33 @@ function openTranslation(element, selectedText = "") {
   currentSentence = { target: selectedText || element.dataset.target, english: element.dataset.english };
   $("#targetQuote").textContent = currentSentence.target;
   $("#englishQuote").textContent = currentSentence.english;
-  $("#sheetLabel").textContent = `${currentBook.languageName.toUpperCase()} · ${selectedText ? "SELECTION" : "PASSAGE"}`;
-  $("#translationSheet").classList.add("open");
-  $("#translationSheet").setAttribute("aria-hidden", "false");
+  $("#sheetLabel").textContent = `${currentBook.languageName.toUpperCase()} · ${selectedText ? "SELECTION" : "SENTENCE"}`;
+  $("#englishLabel").textContent = selectedText ? "ORIGINAL ENGLISH · FULL SENTENCE" : "ORIGINAL ENGLISH";
+  const sheet = $("#translationSheet");
+  sheet.scrollTop = 0;
+  sheet.style.transform = "";
+  sheet.classList.add("open");
+  sheet.setAttribute("aria-hidden", "false");
   $("#scrim").classList.add("active");
+  // Let the phone's back button/gesture close the sheet instead of leaving the book.
+  if (!sheetHistoryEntry) {
+    history.pushState({ sheet: true }, "");
+    sheetHistoryEntry = true;
+  }
+}
+
+function hasReaderSelection() {
+  const selection = window.getSelection();
+  return Boolean(selection && !selection.isCollapsed && selection.toString().trim() && $("#readerContent").contains(selection.anchorNode));
 }
 
 function closePanels() {
+  clearTimeout(selectionTimer);
+  if (sheetHistoryEntry) {
+    sheetHistoryEntry = false;
+    history.back();
+  }
+  if (hasReaderSelection()) window.getSelection().removeAllRanges();
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   $("#listenButton").classList.remove("speaking");
   $("#listenButton span").textContent = "Listen";
@@ -361,16 +396,58 @@ document.addEventListener("keyup", (event) => {
   if (event.key === "ArrowRight" && $("#readerScreen").classList.contains("active")) changeChapter(1);
 });
 
+// Selecting words: wait until the finger/mouse is lifted and the selection stops
+// changing, so the sheet never pops up while the selection handles are being dragged.
+function scheduleSelectionTranslation() {
+  clearTimeout(selectionTimer);
+  selectionTimer = setTimeout(() => {
+    if (pointerIsDown || !hasReaderSelection()) return;
+    const selection = window.getSelection();
+    const text = selection.toString().replace(/\s+/g, " ").trim();
+    const sentence = selection.anchorNode?.parentElement?.closest?.(".sentence");
+    if (!sentence || text.length < 2 || text.length > 300) return;
+    openTranslation(sentence, text);
+  }, 700);
+}
+
+document.addEventListener("pointerdown", () => { pointerIsDown = true; clearTimeout(selectionTimer); });
+document.addEventListener("pointerup", () => { pointerIsDown = false; if (hasReaderSelection()) scheduleSelectionTranslation(); });
+document.addEventListener("pointercancel", () => { pointerIsDown = false; if (hasReaderSelection()) scheduleSelectionTranslation(); });
 document.addEventListener("selectionchange", () => {
-  const selection = window.getSelection();
-  const text = selection?.toString().trim();
-  if (!text || text.length < 2 || !$("#readerContent").contains(selection.anchorNode)) return;
-  const sentence = selection.anchorNode?.parentElement?.closest?.(".sentence");
-  if (sentence && text.length < 300) {
-    clearTimeout(document.selectionTimer);
-    document.selectionTimer = setTimeout(() => openTranslation(sentence, text), 350);
-  }
+  if (!$("#translationSheet").classList.contains("open") && hasReaderSelection()) scheduleSelectionTranslation();
 });
+
+window.addEventListener("popstate", () => {
+  if (!sheetHistoryEntry) return;
+  sheetHistoryEntry = false;
+  closePanels();
+});
+
+// Swipe the sheet down to dismiss it.
+(() => {
+  const sheet = $("#translationSheet");
+  let startY = null;
+  let dragY = 0;
+  sheet.addEventListener("touchstart", (event) => {
+    startY = sheet.scrollTop <= 0 ? event.touches[0].clientY : null;
+    dragY = 0;
+  }, { passive: true });
+  sheet.addEventListener("touchmove", (event) => {
+    if (startY === null) return;
+    dragY = Math.max(0, event.touches[0].clientY - startY);
+    if (dragY > 0) {
+      sheet.style.transition = "none";
+      sheet.style.transform = `translate(-50%, ${dragY}px)`;
+    }
+  }, { passive: true });
+  sheet.addEventListener("touchend", () => {
+    if (startY === null) return;
+    sheet.style.transition = "";
+    sheet.style.transform = "";
+    if (dragY > 90) closePanels();
+    startY = null;
+  });
+})();
 
 loadCatalog();
 
