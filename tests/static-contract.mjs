@@ -18,11 +18,16 @@ assert.equal((html.match(/data-theme-toggle/g) || []).length, 2, "Theme controls
 assert.match(app, /\$\$\('\[data-theme-toggle\]'\).*addEventListener\('click'/, "Theme controls must have a click handler.");
 assert.match(app, /function changeChapter\(direction\)/, "Complete editions must support chapter navigation.");
 assert.match(app, /parallel-progress:/, "Reading position must be saved per book.");
+assert.match(app, /let sentenceTapTimer/, "Sentence taps must wait for word selection to settle.");
+assert.match(app, /if \(!selectedText && element\) element\.classList\.add\("active"\)/, "A word selection must not highlight the whole sentence.");
+assert.match(app, /selectionKind.*"WORD"/, "Single-word selections must be identified separately from full sentences.");
+assert.match(css, /\.sentence:hover, \.sentence:focus-visible/, "Touch focus must not make a word selection look like the whole sentence is selected.");
 assert.match(html, /id="lengthFilter"/, "The library must provide a length filter.");
 assert.match(html, /id="difficultyFilter"/, "The library must provide a difficulty filter.");
 assert.match(html, /id="sortBooks"/, "The library must provide sorting controls.");
 assert.match(app, /beforeinstallprompt/, "The install control must support browser PWA installation.");
 assert.match(html, /apple-mobile-web-app-capable/, "iPhone and iPad home-screen mode must be enabled.");
+assert.match(html, /Press and hold a word/, "The reader must explain how to select a single word on touch devices.");
 assert.match(html, /id="installModal"/, "Install help must use a readable modal instead of a transient toast.");
 assert.match(app, /Open Parallel from its https address before adding it to your Home Screen\./, "iPhone and iPad install help must warn when offline support is unavailable over HTTP.");
 assert.equal(manifest.display, "standalone", "The installed app must launch without browser chrome.");

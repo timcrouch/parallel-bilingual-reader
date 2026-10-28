@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon-180.png" />
-    <link rel="stylesheet" href="./styles.css?v=12" />
+    <link rel="stylesheet" href="./styles.css?v=13" />
     <title>Parallel — bilingual reading</title>
   </head>
   <body data-theme="eink">
@@ -111,7 +111,7 @@
           <article class="reading-page" id="readingPage">
             <div class="chapter-kicker" id="chapterKicker">ГЛАВА ВТОРАЯ</div>
             <h1 id="chapterTitle">Море слёз</h1>
-            <p class="reading-instruction"><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4"></path><path d="M5 19h14"></path></svg> Tap a sentence for the English original. Select text for a closer look.</p>
+            <p class="reading-instruction"><svg viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4"></path><path d="M5 19h14"></path></svg> Tap a sentence for full English. Press and hold a word for a closer look.</p>
             <div id="readerContent"></div>
           </article>
 
@@ -131,7 +131,7 @@
         <p class="target-quote" id="targetQuote"></p>
         <button class="listen-button" id="listenButton"><svg viewBox="0 0 24 24"><path d="M5 10v4h3l4 4V6L8 10H5Z"></path><path d="M16 9c1 .8 1.5 1.8 1.5 3S17 14.2 16 15m2.5-8.5c1.7 1.4 2.5 3.2 2.5 5.5s-.8 4.1-2.5 5.5"></path></svg><span>Listen</span></button>
         <div class="english-block"><span id="englishLabel">ORIGINAL ENGLISH</span><p id="englishQuote"></p></div>
-        <div class="sheet-tip"><span>Tip</span> Tap a sentence, or press and hold to pick words. Swipe down to close.</div>
+        <div class="sheet-tip"><span>Tip</span> Tap for a full sentence. Press and hold a word; drag the handles to expand your selection. Swipe down to close.</div>
       </aside>
 
       <aside class="settings-panel" id="settingsPanel" aria-hidden="true">
@@ -163,6 +163,6 @@
 
       <div class="toast" id="toast" role="status"></div>
     </div>
-    <script src="./app.js?v=12"></script>
+    <script src="./app.js?v=13"></script>
   </body>
 </html>

@@ -10,6 +10,7 @@ let currentSentence = null;
 let sheetHistoryEntry = false;
 let pointerIsDown = false;
 let selectionTimer = null;
+let sentenceTapTimer = null;
 let speechRate = .9;
 let previousLightTheme = localStorage.getItem("parallel-light-theme") || "eink";
 
@@ -105,7 +106,7 @@ function renderContinueCard(book) {
 
 async function loadCatalog() {
   try {
-    const response = await fetch("./books/catalog.json?v=12");
+    const response = await fetch("./books/catalog.json?v=13");
     if (!response.ok) throw new Error(`Library returned ${response.status}`);
     catalog = (await response.json()).books;
     renderLibrary();
@@ -120,7 +121,7 @@ async function loadBook(id) {
   if (bookCache.has(id)) return bookCache.get(id);
   const metadata = catalog.find((book) => book.id === id);
   if (!metadata) throw new Error(`Unknown book: ${id}`);
-  const response = await fetch(`${metadata.path}?v=12`);
+  const response = await fetch(`${metadata.path}?v=13`);
   if (!response.ok) throw new Error(`Book returned ${response.status}`);
   const book = await response.json();
   bookCache.set(id, book);
@@ -173,9 +174,12 @@ function renderChapter() {
       sentence.dataset.target = target;
       sentence.dataset.english = english;
       sentence.addEventListener("click", () => {
-        // A tap opens the sentence; finishing a text selection is handled separately.
-        if (hasReaderSelection()) return;
-        openTranslation(sentence);
+        // Give a press-and-hold or double click time to become a text selection.
+        // A plain tap still opens the whole sentence after that short window.
+        clearTimeout(sentenceTapTimer);
+        sentenceTapTimer = setTimeout(() => {
+          if (!hasReaderSelection()) openTranslation(sentence);
+        }, 320);
       });
       sentence.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -201,12 +205,13 @@ function changeChapter(direction) {
 
 function openTranslation(element, selectedText = "") {
   $$(".sentence").forEach((sentence) => sentence.classList.remove("active"));
-  if (element) element.classList.add("active");
+  if (!selectedText && element) element.classList.add("active");
   currentSentence = { target: selectedText || element.dataset.target, english: element.dataset.english };
   $("#targetQuote").textContent = currentSentence.target;
   $("#englishQuote").textContent = currentSentence.english;
-  $("#sheetLabel").textContent = `${currentBook.languageName.toUpperCase()} · ${selectedText ? "SELECTION" : "SENTENCE"}`;
-  $("#englishLabel").textContent = selectedText ? "ORIGINAL ENGLISH · FULL SENTENCE" : "ORIGINAL ENGLISH";
+  const selectionKind = selectedText ? (/\s/.test(selectedText.trim()) ? "SELECTION" : "WORD") : "SENTENCE";
+  $("#sheetLabel").textContent = `${currentBook.languageName.toUpperCase()} · ${selectionKind}`;
+  $("#englishLabel").textContent = selectedText ? "ENGLISH CONTEXT · FULL SENTENCE" : "ORIGINAL ENGLISH";
   const sheet = $("#translationSheet");
   sheet.scrollTop = 0;
   sheet.style.transform = "";
@@ -227,6 +232,7 @@ function hasReaderSelection() {
 
 function closePanels() {
   clearTimeout(selectionTimer);
+  clearTimeout(sentenceTapTimer);
   if (sheetHistoryEntry) {
     sheetHistoryEntry = false;
     history.back();
@@ -440,17 +446,19 @@ document.addEventListener("keyup", (event) => {
 // changing, so the sheet never pops up while the selection handles are being dragged.
 function scheduleSelectionTranslation() {
   clearTimeout(selectionTimer);
+  clearTimeout(sentenceTapTimer);
   selectionTimer = setTimeout(() => {
     if (pointerIsDown || !hasReaderSelection()) return;
     const selection = window.getSelection();
     const text = selection.toString().replace(/\s+/g, " ").trim();
-    const sentence = selection.anchorNode?.parentElement?.closest?.(".sentence");
-    if (!sentence || text.length < 2 || text.length > 300) return;
+    const selectionNode = selection.anchorNode?.nodeType === Node.TEXT_NODE ? selection.anchorNode.parentElement : selection.anchorNode;
+    const sentence = selectionNode?.closest?.(".sentence");
+    if (!sentence || !text || text.length > 300) return;
     openTranslation(sentence, text);
   }, 700);
 }
 
-document.addEventListener("pointerdown", () => { pointerIsDown = true; clearTimeout(selectionTimer); });
+document.addEventListener("pointerdown", () => { pointerIsDown = true; clearTimeout(selectionTimer); clearTimeout(sentenceTapTimer); });
 document.addEventListener("pointerup", () => { pointerIsDown = false; if (hasReaderSelection()) scheduleSelectionTranslation(); });
 document.addEventListener("pointercancel", () => { pointerIsDown = false; if (hasReaderSelection()) scheduleSelectionTranslation(); });
 document.addEventListener("selectionchange", () => {
