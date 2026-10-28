@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#f3efe5" />
     <meta name="description" content="A calm bilingual reader for English, Russian, and German." />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./styles.css?v=5" />
+    <link rel="stylesheet" href="./styles.css?v=7" />
     <title>Parallel — bilingual reading</title>
   </head>
   <body data-theme="eink">
@@ -47,8 +47,8 @@
           <div class="filter-row">
             <div class="segmented" role="tablist" aria-label="Library language">
               <button class="active" data-filter="all" role="tab">All books</button>
-              <button data-filter="ru" role="tab">Russian <span>3</span></button>
-              <button data-filter="de" role="tab">German <span>2</span></button>
+              <button data-filter="ru" role="tab">Russian <span id="russianCount">—</span></button>
+              <button data-filter="de" role="tab">German <span id="germanCount">—</span></button>
             </div>
             <label class="search-field" id="searchField">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
@@ -57,51 +57,25 @@
           </div>
 
           <section class="continue-card" aria-labelledby="continueTitle">
-            <div class="mini-cover alice-cover"><span>ALICE'S<br />ADVENTURES<br />IN WONDERLAND</span><small>LEWIS CARROLL</small></div>
+            <div class="mini-cover alice-cover" id="continueCover"><span id="continueCoverTitle">ALICE’S ADVENTURES IN WONDERLAND</span><small id="continueCoverAuthor">LEWIS CARROLL</small></div>
             <div class="continue-copy">
-              <p class="eyebrow">CONTINUE READING · RUSSIAN</p>
-              <h2 id="continueTitle">Alice’s Adventures<br />in Wonderland</h2>
-              <p>Lewis Carroll</p>
-              <div class="progress-line"><i style="width: 38%"></i></div>
-              <span>Chapter 2 of 12&nbsp;&nbsp;·&nbsp;&nbsp;38%</span>
+              <p class="eyebrow" id="continueEyebrow">LOADING YOUR LIBRARY</p>
+              <h2 id="continueTitle">Complete classics</h2>
+              <p id="continueAuthor">Preparing your reading room…</p>
+              <div class="progress-line"><i id="continueProgress" style="width: 0"></i></div>
+              <span id="continuePosition">Six bilingual editions</span>
             </div>
-            <button class="round-read-button" data-open-book="alice-ru" aria-label="Continue Alice's Adventures in Wonderland">
+            <button class="round-read-button" id="continueButton" aria-label="Open a book">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
             </button>
           </section>
 
           <div class="section-heading">
             <h2>Your library</h2>
-            <span id="bookCount">5 books</span>
+            <span id="bookCount">Loading complete books…</span>
           </div>
 
-          <div class="book-grid" id="bookGrid">
-            <button class="book-card" data-language="ru" data-title="Alice's Adventures in Wonderland" data-open-book="alice-ru">
-              <span class="book-cover alice-cover"><span>ALICE'S<br />ADVENTURES<br />IN WONDERLAND</span><small>LEWIS CARROLL</small></span>
-              <span class="book-meta"><strong>Alice’s Adventures in Wonderland</strong><span>Lewis Carroll</span><em><b class="flag">RU</b> 38% read</em></span>
-            </button>
-            <button class="book-card" data-language="de" data-title="The Time Machine" data-open-book="time-de">
-              <span class="book-cover time-cover"><span>THE TIME<br />MACHINE</span><small>H. G. WELLS</small><i></i></span>
-              <span class="book-meta"><strong>The Time Machine</strong><span>H. G. Wells</span><em><b class="flag">DE</b> 12% read</em></span>
-            </button>
-            <button class="book-card" data-language="ru" data-title="The Secret Garden" data-open-book="garden-ru">
-              <span class="book-cover garden-cover"><span>THE<br />SECRET<br />GARDEN</span><small>FRANCES HODGSON BURNETT</small><i></i></span>
-              <span class="book-meta"><strong>The Secret Garden</strong><span>Frances Hodgson Burnett</span><em><b class="flag">RU</b> Not started</em></span>
-            </button>
-            <button class="book-card" data-language="de" data-title="Frankenstein" data-open-book="frankenstein-de">
-              <span class="book-cover frank-cover"><span>FRANKENSTEIN</span><small>MARY SHELLEY</small><i></i></span>
-              <span class="book-meta"><strong>Frankenstein</strong><span>Mary Shelley</span><em><b class="flag">DE</b> 64% read</em></span>
-            </button>
-            <button class="book-card" data-language="ru" data-title="A Room with a View" data-open-book="room-ru">
-              <span class="book-cover room-cover"><span>A ROOM<br />WITH A VIEW</span><small>E. M. FORSTER</small><i></i></span>
-              <span class="book-meta"><strong>A Room with a View</strong><span>E. M. Forster</span><em><b class="flag">RU</b> Not started</em></span>
-            </button>
-            <button class="add-book-card" id="addBookCard">
-              <span class="plus">+</span>
-              <strong>Add a new book</strong>
-              <span>EPUB, TXT, or pasted text</span>
-            </button>
-          </div>
+          <div class="book-grid" id="bookGrid" aria-live="polite"></div>
         </section>
 
         <section class="screen reader-screen" id="readerScreen" aria-label="Book reader">
@@ -150,6 +124,7 @@
         <label>Text size <output id="fontSizeOutput">21</output><input id="fontSizeInput" type="range" min="17" max="29" value="21" /></label>
         <label>Speech speed <output id="speechRateOutput">0.9×</output><input id="speechRateInput" type="range" min="0.6" max="1.2" value="0.9" step="0.1" /></label>
         <div class="theme-options"><span>Page colour</span><button class="theme-dot active" data-theme="eink" aria-label="E-paper" title="E-paper"></button><button class="theme-dot" data-theme="white" aria-label="White" title="White"></button><button class="theme-dot" data-theme="night" aria-label="Night" title="Night"></button></div>
+        <div class="edition-details"><span>Edition</span><p id="editionNote">Public-domain bilingual edition.</p><div id="sourceLinks"></div></div>
       </aside>
 
       <div class="modal" id="importModal" role="dialog" aria-modal="true" aria-labelledby="importTitle" aria-hidden="true">
@@ -165,6 +140,6 @@
 
       <div class="toast" id="toast" role="status"></div>
     </div>
-    <script src="./app.js?v=5"></script>
+    <script src="./app.js?v=7"></script>
   </body>
 </html>

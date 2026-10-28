@@ -4,7 +4,8 @@ Parallel is a mobile-first bilingual e-reader for reading English works in Russi
 
 ## Current prototype
 
-- Russian and German reading editions
+- Six complete public-domain classics: three Russian and three German editions
+- Chapter navigation and saved reading position
 - Sentence-level English reveal
 - Device text-to-speech playback
 - E-paper, light, and app-wide dark themes
@@ -28,4 +29,14 @@ node --check dist/app.js
 node --check dist/sw.js
 ```
 
-Automated whole-book translation and durable private library storage are not connected in this prototype.
+The bundled classics are stored locally in `dist/books/` and remain readable without contacting their source sites. Automated translation for newly imported books and durable private library storage are not connected yet.
+
+## Refresh the classics library
+
+The generated reading files are committed to the repository. To rebuild them from their source editions:
+
+```bash
+python3 scripts/import_classics.py
+```
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for edition sources and reuse notes.

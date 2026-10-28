@@ -15,8 +15,23 @@ assert.match(worker, new RegExp(`styles\\.css\\?v=${styleVersion}`), "The servic
 assert.match(worker, new RegExp(`app\\.js\\?v=${scriptVersion}`), "The service worker must cache the versioned JavaScript.");
 assert.equal((html.match(/data-theme-toggle/g) || []).length, 2, "Theme controls must exist in the library and reader.");
 assert.match(app, /\$\$\('\[data-theme-toggle\]'\).*addEventListener\('click'/, "Theme controls must have a click handler.");
+assert.match(app, /function changeChapter\(direction\)/, "Complete editions must support chapter navigation.");
+assert.match(app, /parallel-progress:/, "Reading position must be saved per book.");
 
 const nightBodyRule = css.match(/body\[data-theme="night"\]\s*\{([\s\S]*?)\}/)?.[1] || "";
 assert.match(nightBodyRule, /color\s*:\s*var\(--ink\)/, "Dark mode must explicitly apply its ink colour to the whole page.");
+
+const catalog = JSON.parse(readFileSync(new URL("../dist/books/catalog.json", import.meta.url), "utf8"));
+assert.equal(catalog.books.length, 6, "The starter library must contain six complete classics.");
+assert.equal(catalog.books.filter((book) => book.flag === "RU").length, 3, "The library must contain three Russian editions.");
+assert.equal(catalog.books.filter((book) => book.flag === "DE").length, 3, "The library must contain three German editions.");
+
+for (const metadata of catalog.books) {
+  const book = JSON.parse(readFileSync(new URL(`../dist/books/${metadata.id}.json`, import.meta.url), "utf8"));
+  assert.equal(book.chapters.length, metadata.chapterCount, `${metadata.id} chapter metadata must match its reading file.`);
+  const segments = book.chapters.flatMap((chapter) => chapter.paragraphs.flat());
+  assert.ok(segments.length > 800, `${metadata.id} must contain a complete edition, not a short sample.`);
+  assert.ok(segments.every(([target, english]) => target.trim() && english.trim()), `${metadata.id} passages must contain both languages.`);
+}
 
 console.log(`Static contract passed for asset version ${scriptVersion}.`);

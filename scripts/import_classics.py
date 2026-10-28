@@ -184,6 +184,16 @@ def clean_text(value: str) -> str:
     value = re.sub(r"\[Pg\.?\s*\d+\]", " ", value, flags=re.I)
     value = re.sub(r"[ \t\r\f\v]+", " ", value)
     value = re.sub(r" *\n *", "\n", value)
+    for marker in (
+        "Источник текста:",
+        "Transcriber's Note",
+        "Transcriber’s Note",
+        "Anmerkungen zur Transkription",
+        "Folgende Inkonsistenzen",
+        "Im Text wurden folgende Änderungen",
+    ):
+        if marker in value:
+            value = value.split(marker, 1)[0]
     return value.strip()
 
 
@@ -306,7 +316,9 @@ def align_sequences(target: list[str], english: list[str]) -> list[tuple[str, st
         return [(" ".join(target), " ".join(english))]
 
     ratio = max(0.35, min(2.8, sequence_length(target) / max(1, sequence_length(english))))
-    operations = [(1, 1, 0.0), (1, 2, 0.16), (2, 1, 0.16), (2, 2, 0.24), (1, 3, 0.42), (3, 1, 0.42)]
+    operations = [(1, 1, 0.0), (2, 2, 0.22), (2, 3, 0.34), (3, 2, 0.34)]
+    operations.extend((1, size, 0.13 * (size - 1)) for size in range(2, 13))
+    operations.extend((size, 1, 0.13 * (size - 1)) for size in range(2, 13))
     rows, columns = len(target), len(english)
     infinity = float("inf")
     scores = [[infinity] * (columns + 1) for _ in range(rows + 1)]
@@ -349,11 +361,26 @@ SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?…])\s+(?=[—\-\"“„'A-ZА-ЯЁÄ�
 
 
 def sentences(paragraph: str) -> list[str]:
-    pieces = [piece.strip() for piece in SENTENCE_BOUNDARY.split(paragraph) if piece.strip()]
+    protected = re.sub(
+        r"\b(?:Mr|Mrs|Ms|Dr|Prof|St|Jr|Sr|vs|etc)\.",
+        lambda match: match.group(0).replace(".", "∯"),
+        paragraph,
+        flags=re.I,
+    )
+    protected = re.sub(
+        r"\b([A-ZА-ЯЁÄÖÜ])\.(?=\s*[A-ZА-ЯЁÄÖÜ])",
+        lambda match: f"{match.group(1)}∯",
+        protected,
+    )
+    pieces = [piece.replace("∯", ".").strip() for piece in SENTENCE_BOUNDARY.split(protected) if piece.strip()]
     return pieces or [paragraph]
 
 
 def align_chapters(target: list[dict], english: list[dict]) -> list[dict]:
+    if len(target) == len(english):
+        chapter_groups = [(index, index + 1, index, index + 1) for index in range(len(target))]
+        return build_aligned_chapters(target, english, chapter_groups)
+
     target_lengths = [str(sequence_length(chapter["paragraphs"])) for chapter in target]
     english_lengths = [str(sequence_length(chapter["paragraphs"])) for chapter in english]
 
@@ -390,6 +417,32 @@ def align_chapters(target: list[dict], english: list[dict]) -> list[dict]:
         i, j = pi, pj
     chapter_groups.reverse()
 
+    return build_aligned_chapters(target, english, chapter_groups)
+
+
+def merge_speaker_labels(chapters: list[dict]) -> list[dict]:
+    """Join standalone dramatic speaker labels to the speech that follows."""
+    for chapter in chapters:
+        merged: list[str] = []
+        paragraphs = chapter["paragraphs"]
+        index = 0
+        while index < len(paragraphs):
+            paragraph = paragraphs[index]
+            if index + 1 < len(paragraphs) and re.fullmatch(r"[A-Z][A-Z .’'\-]{1,45}", paragraph):
+                merged.append(f"{paragraph}. {paragraphs[index + 1]}")
+                index += 2
+            else:
+                merged.append(paragraph)
+                index += 1
+        chapter["paragraphs"] = merged
+    return chapters
+
+
+def build_aligned_chapters(
+    target: list[dict],
+    english: list[dict],
+    chapter_groups: list[tuple[int, int, int, int]],
+) -> list[dict]:
     output: list[dict] = []
     for target_start, target_end, english_start, english_end in chapter_groups:
         target_group = target[target_start:target_end]
@@ -397,13 +450,15 @@ def align_chapters(target: list[dict], english: list[dict]) -> list[dict]:
         target_paragraphs = [paragraph for chapter in target_group for paragraph in chapter["paragraphs"]]
         english_paragraphs = [paragraph for chapter in english_group for paragraph in chapter["paragraphs"]]
         paragraph_pairs = align_sequences(target_paragraphs, english_paragraphs)
-        segments: list[list[str]] = []
+        paragraphs: list[list[list[str]]] = []
         for target_paragraph, english_paragraph in paragraph_pairs:
-            segments.extend([list(pair) for pair in align_sequences(sentences(target_paragraph), sentences(english_paragraph))])
+            paragraphs.append([
+                list(pair) for pair in align_sequences(sentences(target_paragraph), sentences(english_paragraph))
+            ])
         output.append({
             "title": " / ".join(chapter["title"] for chapter in target_group),
             "englishTitle": " / ".join(chapter["title"] for chapter in english_group),
-            "segments": segments,
+            "paragraphs": paragraphs,
         })
     return output
 
@@ -418,10 +473,16 @@ def build_book(book: Book, cache: dict[str, list[tuple[str, str]]]) -> dict:
     english_items = cache[book.english.url]
     target_chapters = PARSERS[book.target.parser](target_items)
     english_chapters = PARSERS[book.english.parser](english_items)
+    if book.english.parser == "faust_en":
+        english_chapters = merge_speaker_labels(english_chapters)
     if not target_chapters or not english_chapters:
         raise RuntimeError(f"No chapters parsed for {book.id}")
     chapters = align_chapters(target_chapters, english_chapters)
-    segment_count = sum(len(chapter["segments"]) for chapter in chapters)
+    segment_count = sum(
+        len(paragraph)
+        for chapter in chapters
+        for paragraph in chapter["paragraphs"]
+    )
     if segment_count < 100:
         raise RuntimeError(f"Suspiciously small book {book.id}: {segment_count} aligned segments")
     print(

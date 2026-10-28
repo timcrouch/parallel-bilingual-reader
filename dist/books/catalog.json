@@ -1,0 +1,82 @@
+{
+  "books": [
+    {
+      "id": "alice-ru",
+      "title": "Alice’s Adventures in Wonderland",
+      "targetTitle": "Приключения Алисы в стране чудес",
+      "author": "Lewis Carroll",
+      "language": "ru-RU",
+      "languageName": "Russian",
+      "flag": "RU",
+      "cover": "alice-cover",
+      "editionNote": "Russian translation by A. Rozhdestvenskaya (1909).",
+      "chapterCount": 12,
+      "path": "./books/alice-ru.json"
+    },
+    {
+      "id": "garden-ru",
+      "title": "The Secret Garden",
+      "targetTitle": "Таинственный сад",
+      "author": "Frances Hodgson Burnett",
+      "language": "ru-RU",
+      "languageName": "Russian",
+      "flag": "RU",
+      "cover": "garden-cover",
+      "editionNote": "Russian translation by R. Rubinova (1914).",
+      "chapterCount": 27,
+      "path": "./books/garden-ru.json"
+    },
+    {
+      "id": "time-ru",
+      "title": "The Time Machine",
+      "targetTitle": "Машина времени",
+      "author": "H. G. Wells",
+      "language": "ru-RU",
+      "languageName": "Russian",
+      "flag": "RU",
+      "cover": "time-cover",
+      "editionNote": "Russian translation by N. A. Morozov (1909).",
+      "chapterCount": 17,
+      "path": "./books/time-ru.json"
+    },
+    {
+      "id": "alice-de",
+      "title": "Alice’s Adventures in Wonderland",
+      "targetTitle": "Alice’s Abenteuer im Wunderland",
+      "author": "Lewis Carroll",
+      "language": "de-DE",
+      "languageName": "German",
+      "flag": "DE",
+      "cover": "alice-de-cover",
+      "editionNote": "German translation by Antonie Zimmermann (1869).",
+      "chapterCount": 12,
+      "path": "./books/alice-de.json"
+    },
+    {
+      "id": "treasure-de",
+      "title": "Treasure Island",
+      "targetTitle": "Die Schatzinsel",
+      "author": "Robert Louis Stevenson",
+      "language": "de-DE",
+      "languageName": "German",
+      "flag": "DE",
+      "cover": "treasure-cover",
+      "editionNote": "German edition published in 1922.",
+      "chapterCount": 34,
+      "path": "./books/treasure-de.json"
+    },
+    {
+      "id": "faust-de",
+      "title": "Faust, Part One",
+      "targetTitle": "Faust. Der Tragödie erster Teil",
+      "author": "Johann Wolfgang von Goethe",
+      "language": "de-DE",
+      "languageName": "German",
+      "flag": "DE",
+      "cover": "faust-cover",
+      "editionNote": "English translation by Bayard Taylor (1870–71).",
+      "chapterCount": 27,
+      "path": "./books/faust-de.json"
+    }
+  ]
+}
