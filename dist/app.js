@@ -1,16 +1,22 @@
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
+const WORD_TRANSLATION_ENDPOINT = "https://api.mymemory.translated.net/get";
+const WORD_PATTERN = /[\p{L}\p{M}]+(?:[’'\-][\p{L}\p{M}]+)*/u;
 
 let catalog = [];
 const bookCache = new Map();
+const wordTranslationCache = new Map();
 let currentBook = null;
 let currentBookId = null;
 let currentChapterIndex = 0;
 let currentSentence = null;
 let sheetHistoryEntry = false;
-let pointerIsDown = false;
-let selectionTimer = null;
 let sentenceTapTimer = null;
+let wordPressTimer = null;
+let wordPressTarget = null;
+let wordPressPoint = null;
+let suppressSentenceTap = false;
+let translationRequestId = 0;
 let speechRate = .9;
 let previousLightTheme = localStorage.getItem("parallel-light-theme") || "eink";
 
@@ -106,7 +112,7 @@ function renderContinueCard(book) {
 
 async function loadCatalog() {
   try {
-    const response = await fetch("./books/catalog.json?v=13");
+    const response = await fetch("./books/catalog.json?v=15");
     if (!response.ok) throw new Error(`Library returned ${response.status}`);
     catalog = (await response.json()).books;
     renderLibrary();
@@ -121,7 +127,7 @@ async function loadBook(id) {
   if (bookCache.has(id)) return bookCache.get(id);
   const metadata = catalog.find((book) => book.id === id);
   if (!metadata) throw new Error(`Unknown book: ${id}`);
-  const response = await fetch(`${metadata.path}?v=13`);
+  const response = await fetch(`${metadata.path}?v=15`);
   if (!response.ok) throw new Error(`Book returned ${response.status}`);
   const book = await response.json();
   bookCache.set(id, book);
@@ -168,17 +174,34 @@ function renderChapter() {
     paragraph.forEach(([target, english]) => {
       const sentence = document.createElement("span");
       sentence.className = "sentence";
-      sentence.textContent = target;
       sentence.tabIndex = 0;
       sentence.setAttribute("role", "button");
       sentence.dataset.target = target;
       sentence.dataset.english = english;
-      sentence.addEventListener("click", () => {
-        // Give a press-and-hold or double click time to become a text selection.
-        // A plain tap still opens the whole sentence after that short window.
+      const parts = target.match(/[\p{L}\p{M}]+(?:[’'\-][\p{L}\p{M}]+)*|[^\p{L}\p{M}]+/gu) || [target];
+      parts.forEach((part) => {
+        if (!WORD_PATTERN.test(part)) return sentence.append(part);
+        const word = document.createElement("span");
+        word.className = "word";
+        word.textContent = part;
+        word.addEventListener("dblclick", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          clearTimeout(sentenceTapTimer);
+          openWordTranslation(sentence, word);
+        });
+        sentence.append(word);
+      });
+      sentence.addEventListener("click", (event) => {
+        if (suppressSentenceTap) {
+          event.preventDefault();
+          suppressSentenceTap = false;
+          return;
+        }
+        // A double click or press-and-hold can cancel this delayed sentence tap.
         clearTimeout(sentenceTapTimer);
         sentenceTapTimer = setTimeout(() => {
-          if (!hasReaderSelection()) openTranslation(sentence);
+          openTranslation(sentence);
         }, 320);
       });
       sentence.addEventListener("keydown", (event) => {
@@ -203,15 +226,7 @@ function changeChapter(direction) {
   renderChapter();
 }
 
-function openTranslation(element, selectedText = "") {
-  $$(".sentence").forEach((sentence) => sentence.classList.remove("active"));
-  if (!selectedText && element) element.classList.add("active");
-  currentSentence = { target: selectedText || element.dataset.target, english: element.dataset.english };
-  $("#targetQuote").textContent = currentSentence.target;
-  $("#englishQuote").textContent = currentSentence.english;
-  const selectionKind = selectedText ? (/\s/.test(selectedText.trim()) ? "SELECTION" : "WORD") : "SENTENCE";
-  $("#sheetLabel").textContent = `${currentBook.languageName.toUpperCase()} · ${selectionKind}`;
-  $("#englishLabel").textContent = selectedText ? "ENGLISH CONTEXT · FULL SENTENCE" : "ORIGINAL ENGLISH";
+function showTranslationSheet() {
   const sheet = $("#translationSheet");
   sheet.scrollTop = 0;
   sheet.style.transform = "";
@@ -225,19 +240,90 @@ function openTranslation(element, selectedText = "") {
   }
 }
 
-function hasReaderSelection() {
-  const selection = window.getSelection();
-  return Boolean(selection && !selection.isCollapsed && selection.toString().trim() && $("#readerContent").contains(selection.anchorNode));
+function openTranslation(element) {
+  translationRequestId += 1;
+  $$(".sentence").forEach((sentence) => sentence.classList.remove("active"));
+  $$(".word").forEach((word) => word.classList.remove("active"));
+  element.classList.add("active");
+  currentSentence = { target: element.dataset.target, english: element.dataset.english };
+  $("#targetQuote").textContent = currentSentence.target;
+  $("#englishQuote").textContent = currentSentence.english;
+  $("#sheetLabel").textContent = `${currentBook.languageName.toUpperCase()} · SENTENCE`;
+  $("#englishLabel").textContent = "ORIGINAL ENGLISH";
+  showTranslationSheet();
+}
+
+function wordCacheKey(word) {
+  return `${currentBook.language.toLowerCase()}:${word.toLocaleLowerCase(currentBook.language)}`;
+}
+
+function cachedWordTranslation(key) {
+  if (wordTranslationCache.has(key)) return wordTranslationCache.get(key);
+  const saved = localStorage.getItem(`parallel-word:${key}`);
+  if (saved) wordTranslationCache.set(key, saved);
+  return saved;
+}
+
+function rememberWordTranslation(key, translation) {
+  wordTranslationCache.set(key, translation);
+  try {
+    localStorage.setItem(`parallel-word:${key}`, translation);
+  } catch {
+    // The in-memory cache still avoids repeat requests if storage is full.
+  }
+}
+
+async function openWordTranslation(sentence, wordElement) {
+  clearTimeout(sentenceTapTimer);
+  clearTimeout(wordPressTimer);
+  suppressSentenceTap = true;
+  if (window.getSelection()) window.getSelection().removeAllRanges();
+  $$(".sentence").forEach((item) => item.classList.remove("active"));
+  $$(".word").forEach((word) => word.classList.remove("active"));
+  wordElement.classList.add("active");
+
+  const word = wordElement.textContent.trim();
+  const key = wordCacheKey(word);
+  const cached = cachedWordTranslation(key);
+  const requestId = ++translationRequestId;
+  currentSentence = { target: word, english: cached || "" };
+  $("#targetQuote").textContent = word;
+  $("#sheetLabel").textContent = `${currentBook.languageName.toUpperCase()} · WORD`;
+  $("#englishLabel").textContent = "ENGLISH TRANSLATION";
+  $("#englishQuote").textContent = cached || "Translating…";
+  showTranslationSheet();
+  if (cached) return;
+
+  try {
+    const url = new URL(WORD_TRANSLATION_ENDPOINT);
+    url.searchParams.set("q", word);
+    url.searchParams.set("langpair", `${currentBook.language.split("-")[0]}|en`);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Word translation returned ${response.status}`);
+    const result = await response.json();
+    const translation = result.responseData?.translatedText?.trim();
+    if (!translation || result.responseStatus !== 200) throw new Error(result.responseDetails || "No word translation returned");
+    rememberWordTranslation(key, translation);
+    if (requestId !== translationRequestId) return;
+    currentSentence.english = translation;
+    $("#englishQuote").textContent = translation;
+  } catch (error) {
+    console.error("Word translation unavailable", error);
+    if (requestId !== translationRequestId) return;
+    $("#englishQuote").textContent = "Word translation needs an internet connection. Tap the sentence for its bundled English translation.";
+  }
 }
 
 function closePanels() {
-  clearTimeout(selectionTimer);
   clearTimeout(sentenceTapTimer);
+  clearTimeout(wordPressTimer);
+  suppressSentenceTap = false;
+  translationRequestId += 1;
   if (sheetHistoryEntry) {
     sheetHistoryEntry = false;
     history.back();
   }
-  if (hasReaderSelection()) window.getSelection().removeAllRanges();
+  if (window.getSelection()) window.getSelection().removeAllRanges();
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   $("#listenButton").classList.remove("speaking");
   $("#listenButton span").textContent = "Listen";
@@ -247,6 +333,7 @@ function closePanels() {
   });
   $("#scrim").classList.remove("active");
   $$(".sentence").forEach((sentence) => sentence.classList.remove("active"));
+  $$(".word").forEach((word) => word.classList.remove("active"));
 }
 
 function speak() {
@@ -442,27 +529,49 @@ document.addEventListener("keyup", (event) => {
   if (event.key === "ArrowRight" && $("#readerScreen").classList.contains("active")) changeChapter(1);
 });
 
-// Selecting words: wait until the finger/mouse is lifted and the selection stops
-// changing, so the sheet never pops up while the selection handles are being dragged.
-function scheduleSelectionTranslation() {
-  clearTimeout(selectionTimer);
-  clearTimeout(sentenceTapTimer);
-  selectionTimer = setTimeout(() => {
-    if (pointerIsDown || !hasReaderSelection()) return;
-    const selection = window.getSelection();
-    const text = selection.toString().replace(/\s+/g, " ").trim();
-    const selectionNode = selection.anchorNode?.nodeType === Node.TEXT_NODE ? selection.anchorNode.parentElement : selection.anchorNode;
-    const sentence = selectionNode?.closest?.(".sentence");
-    if (!sentence || !text || text.length > 300) return;
-    openTranslation(sentence, text);
-  }, 700);
+function cancelWordPress() {
+  clearTimeout(wordPressTimer);
+  wordPressTimer = null;
+  wordPressTarget = null;
+  wordPressPoint = null;
 }
 
-document.addEventListener("pointerdown", () => { pointerIsDown = true; clearTimeout(selectionTimer); clearTimeout(sentenceTapTimer); });
-document.addEventListener("pointerup", () => { pointerIsDown = false; if (hasReaderSelection()) scheduleSelectionTranslation(); });
-document.addEventListener("pointercancel", () => { pointerIsDown = false; if (hasReaderSelection()) scheduleSelectionTranslation(); });
-document.addEventListener("selectionchange", () => {
-  if (!$("#translationSheet").classList.contains("open") && hasReaderSelection()) scheduleSelectionTranslation();
+// Use an app-owned long press so Android does not cover the result with its
+// Copy / Select all / Web search menu. Desktop users can double-click a word.
+$("#readerContent").addEventListener("pointerdown", (event) => {
+  if (!event.isPrimary || event.pointerType === "mouse") return;
+  const word = event.target.closest?.(".word");
+  if (!word) return;
+  wordPressTarget = word;
+  wordPressPoint = { x: event.clientX, y: event.clientY };
+  clearTimeout(wordPressTimer);
+  wordPressTimer = setTimeout(() => {
+    const sentence = wordPressTarget?.closest(".sentence");
+    if (!sentence || !wordPressTarget) return;
+    openWordTranslation(sentence, wordPressTarget);
+    wordPressTimer = null;
+  }, 475);
+});
+
+$("#readerContent").addEventListener("pointermove", (event) => {
+  if (!wordPressPoint) return;
+  if (Math.hypot(event.clientX - wordPressPoint.x, event.clientY - wordPressPoint.y) > 12) cancelWordPress();
+});
+
+$("#readerContent").addEventListener("pointerup", () => {
+  if (wordPressTimer) cancelWordPress();
+});
+
+$("#readerContent").addEventListener("pointercancel", () => {
+  if (wordPressTimer) cancelWordPress();
+});
+
+$("#readerContent").addEventListener("contextmenu", (event) => {
+  const word = event.target.closest?.(".word");
+  if (!word) return;
+  event.preventDefault();
+  clearTimeout(sentenceTapTimer);
+  if (!$("#translationSheet").classList.contains("open")) openWordTranslation(word.closest(".sentence"), word);
 });
 
 window.addEventListener("popstate", () => {

@@ -1,14 +1,14 @@
 const CACHE_PREFIX = "parallel-v";
-const CACHE = "parallel-v13";
-const CATALOG_URL = "./books/catalog.json?v=13";
-const ASSETS = ["./", "./index.html", "./styles.css?v=13", "./app.js?v=13", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", CATALOG_URL];
+const CACHE = "parallel-v15";
+const CATALOG_URL = "./books/catalog.json?v=15";
+const ASSETS = ["./", "./index.html", "./styles.css?v=15", "./app.js?v=15", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", CATALOG_URL];
 
 async function precacheLibrary() {
   const cache = await caches.open(CACHE);
   await cache.addAll(ASSETS);
   const catalogResponse = await cache.match(CATALOG_URL);
   const catalog = await catalogResponse.json();
-  await cache.addAll(catalog.books.map((book) => `${book.path}?v=13`));
+  await cache.addAll(catalog.books.map((book) => `${book.path}?v=15`));
 }
 
 self.addEventListener("install", (event) => event.waitUntil(precacheLibrary().then(() => self.skipWaiting())));

@@ -21,3 +21,7 @@ Parallel’s bundled classics are processed into aligned bilingual reading passa
 - *Faust, Part One*: Goethe’s German text from [Project Gutenberg ebook 2229](https://www.gutenberg.org/ebooks/2229); Bayard Taylor’s 1870–71 English translation from [ebook 14591](https://www.gutenberg.org/ebooks/14591).
 
 Project Gutenberg explains that acknowledgements and reference links do not associate an adapted text with its trademark. Russian Wikisource marks the selected translations as public domain and requests attribution through a link to the reused page. Copyright status can vary by country; these editions were chosen from authors and translators whose stated publication and death dates place them outside ordinary life-plus-70-year terms.
+
+## Word translation service
+
+Individual word lookups are sent to the [MyMemory Translation API](https://mymemory.translated.net/doc/spec.php). The app sends only the selected word and language pair, then stores the returned English translation on the device for later reuse. Full reading passages are not sent for word lookups.

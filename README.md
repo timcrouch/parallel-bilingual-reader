@@ -8,6 +8,7 @@ Parallel is a mobile-first bilingual e-reader for reading English works in Russi
 - Library filtering and sorting by language, length, and reading difficulty
 - Chapter navigation and saved reading position
 - Sentence-level English reveal
+- Word-level online translation with an on-device cache
 - Device text-to-speech playback
 - E-paper, light, and app-wide dark themes
 - Responsive phone and tablet layouts
@@ -32,7 +33,7 @@ node --check dist/app.js
 node --check dist/sw.js
 ```
 
-The bundled classics are stored locally in `dist/books/` and remain readable without contacting their source sites. Automated translation for newly imported books and durable private library storage are not connected yet.
+The bundled classics and their sentence translations are stored locally in `dist/books/` and remain readable without contacting their source sites. Individual word lookups use the MyMemory translation API and are cached on the device after the first lookup. Automated translation for newly imported books and durable private library storage are not connected yet.
 
 ## Refresh the classics library
 
