@@ -16,6 +16,7 @@ function applyTheme(theme, persist = true) {
     if (persist) localStorage.setItem("parallel-light-theme", theme);
   }
   document.body.dataset.theme = theme;
+  document.querySelector('meta[name="theme-color"]').content = theme === "night" ? "#202321" : "#f3efe5";
   $$(".theme-dot").forEach((button) => button.classList.toggle("active", button.dataset.theme === theme));
   $$('[data-theme-toggle]').forEach((button) => {
     const dark = theme === "night";
@@ -48,13 +49,17 @@ function coverTitle(title) {
   return title.toUpperCase().replace(/\s+/g, " ");
 }
 
+function compactWords(wordCount) {
+  return `${Math.max(1, Math.round(wordCount / 1000))}k words`;
+}
+
 function bookCard(book) {
   const progress = getBookProgress(book);
   const status = progress.index ? `${progress.percent}% read` : "Ready to read";
   return `
-    <button class="book-card" data-language="${book.flag.toLowerCase()}" data-title="${book.title} ${book.targetTitle} ${book.author}" data-open-book="${book.id}">
+    <button class="book-card" data-id="${book.id}" data-language="${book.flag.toLowerCase()}" data-length="${book.length}" data-difficulty="${book.difficulty}" data-word-count="${book.wordCount}" data-title="${book.title} ${book.targetTitle} ${book.author}" data-open-book="${book.id}">
       <span class="book-cover ${book.cover}"><span>${coverTitle(book.title)}</span><small>${book.author.toUpperCase()}</small><i></i></span>
-      <span class="book-meta"><strong>${book.title}</strong><span>${book.author}</span><em><b class="flag">${book.flag}</b> ${status} · ${book.chapterCount} chapters</em></span>
+      <span class="book-meta"><strong>${book.title}</strong><span>${book.author}</span><em><b class="flag">${book.flag}</b>${book.difficultyLabel} · ${book.lengthLabel} · ${compactWords(book.wordCount)}<small>${status} · ${book.chapterCount} chapters</small></em></span>
     </button>`;
 }
 
@@ -68,7 +73,7 @@ function addBookCard() {
 }
 
 function renderLibrary() {
-  $("#bookGrid").innerHTML = catalog.map(bookCard).join("") + addBookCard();
+  $("#bookGrid").innerHTML = catalog.map(bookCard).join("") + '<p class="empty-library" id="emptyLibrary" hidden>No books match these filters.</p>' + addBookCard();
   $("#bookCount").textContent = `${catalog.length} complete books`;
   $("#russianCount").textContent = catalog.filter((book) => book.flag === "RU").length;
   $("#germanCount").textContent = catalog.filter((book) => book.flag === "DE").length;
@@ -97,7 +102,7 @@ function renderContinueCard(book) {
 
 async function loadCatalog() {
   try {
-    const response = await fetch("./books/catalog.json?v=7");
+    const response = await fetch("./books/catalog.json?v=9");
     if (!response.ok) throw new Error(`Library returned ${response.status}`);
     catalog = (await response.json()).books;
     renderLibrary();
@@ -112,7 +117,7 @@ async function loadBook(id) {
   if (bookCache.has(id)) return bookCache.get(id);
   const metadata = catalog.find((book) => book.id === id);
   if (!metadata) throw new Error(`Unknown book: ${id}`);
-  const response = await fetch(`${metadata.path}?v=7`);
+  const response = await fetch(`${metadata.path}?v=9`);
   if (!response.ok) throw new Error(`Book returned ${response.status}`);
   const book = await response.json();
   bookCache.set(id, book);
@@ -245,14 +250,58 @@ function filterBooks() {
   if (!activeFilter) return;
   const language = activeFilter.dataset.filter;
   const query = $("#searchInput").value.toLowerCase();
+  const length = $("#lengthFilter").value;
+  const difficulty = $("#difficultyFilter").value;
+  const sort = $("#sortBooks").value;
+  const difficultyRank = { accessible: 1, intermediate: 2, advanced: 3 };
+  const metadata = new Map(catalog.map((book) => [book.id, book]));
+  const cards = $$(".book-card");
+  cards.sort((left, right) => {
+    const a = metadata.get(left.dataset.id);
+    const b = metadata.get(right.dataset.id);
+    if (sort === "shortest") return a.wordCount - b.wordCount || a.title.localeCompare(b.title);
+    if (sort === "longest") return b.wordCount - a.wordCount || a.title.localeCompare(b.title);
+    if (sort === "easiest") return difficultyRank[a.difficulty] - difficultyRank[b.difficulty] || a.wordCount - b.wordCount;
+    if (sort === "hardest") return difficultyRank[b.difficulty] - difficultyRank[a.difficulty] || b.wordCount - a.wordCount;
+    return a.title.localeCompare(b.title);
+  });
+  const grid = $("#bookGrid");
+  cards.forEach((card) => grid.insertBefore(card, $("#emptyLibrary")));
   let count = 0;
-  $$(".book-card").forEach((card) => {
-    const show = (language === "all" || card.dataset.language === language) && card.dataset.title.toLowerCase().includes(query);
+  cards.forEach((card) => {
+    const show = (language === "all" || card.dataset.language === language)
+      && (length === "all" || card.dataset.length === length)
+      && (difficulty === "all" || card.dataset.difficulty === difficulty)
+      && card.dataset.title.toLowerCase().includes(query);
     card.hidden = !show;
     if (show) count += 1;
   });
+  $("#emptyLibrary").hidden = count !== 0;
   $("#bookCount").textContent = `${count} complete book${count === 1 ? "" : "s"}`;
 }
+
+let deferredInstallPrompt = null;
+const installedAsApp = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+if (installedAsApp) $("#installButton").hidden = true;
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  $("#installButton").hidden = false;
+});
+window.addEventListener("appinstalled", () => {
+  deferredInstallPrompt = null;
+  $("#installButton").hidden = true;
+  showToast("Parallel is now on your home screen.");
+});
+$("#installButton").addEventListener("click", async () => {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    return;
+  }
+  showToast("On iPhone or iPad: tap Share, then Add to Home Screen.");
+});
 
 $("#continueButton").addEventListener("click", (event) => renderReader(event.currentTarget.dataset.openBook));
 $("#backButton").addEventListener("click", () => { closePanels(); renderLibrary(); showScreen("#libraryScreen"); });
@@ -285,6 +334,7 @@ $$('.segmented button').forEach((button) => button.addEventListener('click', () 
   filterBooks();
 }));
 $("#searchInput").addEventListener("input", filterBooks);
+[$("#lengthFilter"), $("#difficultyFilter"), $("#sortBooks")].forEach((control) => control.addEventListener("change", filterBooks));
 $("#searchButton").addEventListener("click", () => {
   $("#searchInput").focus();
   $("#searchField").scrollIntoView({ behavior: "smooth", block: "center" });

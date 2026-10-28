@@ -5,8 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#f3efe5" />
     <meta name="description" content="A calm bilingual reader for English, Russian, and German." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Parallel" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="stylesheet" href="./styles.css?v=7" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/icon-180.png" />
+    <link rel="stylesheet" href="./styles.css?v=9" />
     <title>Parallel — bilingual reading</title>
   </head>
   <body data-theme="eink">
@@ -17,6 +22,10 @@
           <span>parallel</span>
         </button>
         <div class="topbar-actions">
+          <button class="install-button" id="installButton" aria-label="Install Parallel on this device">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4"></path><path d="M5 19h14"></path></svg>
+            <span>Install</span>
+          </button>
           <button class="icon-button" id="searchButton" aria-label="Search library">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
           </button>
@@ -56,6 +65,12 @@
             </label>
           </div>
 
+          <div class="library-controls" aria-label="Refine library">
+            <label><span>Length</span><select id="lengthFilter"><option value="all">Any length</option><option value="short">Short</option><option value="medium">Medium</option><option value="long">Long</option></select></label>
+            <label><span>Difficulty</span><select id="difficultyFilter"><option value="all">Any difficulty</option><option value="accessible">Accessible</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select></label>
+            <label><span>Sort</span><select id="sortBooks"><option value="title">Title A–Z</option><option value="shortest">Shortest first</option><option value="longest">Longest first</option><option value="easiest">Easiest first</option><option value="hardest">Hardest first</option></select></label>
+          </div>
+
           <section class="continue-card" aria-labelledby="continueTitle">
             <div class="mini-cover alice-cover" id="continueCover"><span id="continueCoverTitle">ALICE’S ADVENTURES IN WONDERLAND</span><small id="continueCoverAuthor">LEWIS CARROLL</small></div>
             <div class="continue-copy">
@@ -63,7 +78,7 @@
               <h2 id="continueTitle">Complete classics</h2>
               <p id="continueAuthor">Preparing your reading room…</p>
               <div class="progress-line"><i id="continueProgress" style="width: 0"></i></div>
-              <span id="continuePosition">Six bilingual editions</span>
+              <span id="continuePosition">Twelve bilingual editions</span>
             </div>
             <button class="round-read-button" id="continueButton" aria-label="Open a book">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>
@@ -140,6 +155,6 @@
 
       <div class="toast" id="toast" role="status"></div>
     </div>
-    <script src="./app.js?v=7"></script>
+    <script src="./app.js?v=9"></script>
   </body>
 </html>

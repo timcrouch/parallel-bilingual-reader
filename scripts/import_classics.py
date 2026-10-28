@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 import sys
 import urllib.request
@@ -28,6 +29,7 @@ class Source:
     url: str
     landing_url: str
     parser: str
+    cache_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -43,14 +45,16 @@ class Book:
     target: Source
     english: Source
     edition_note: str
+    difficulty: str = "intermediate"
+    normalize_russian_spelling: bool = False
 
 
 PG = "https://www.gutenberg.org/cache/epub/{0}/pg{0}-images.html"
 PG_LANDING = "https://www.gutenberg.org/ebooks/{0}"
 
 
-def pg(book_id: int, parser: str) -> Source:
-    return Source(PG.format(book_id), PG_LANDING.format(book_id), parser)
+def pg(book_id: int, parser: str, cache_name: str | None = None) -> Source:
+    return Source(PG.format(book_id), PG_LANDING.format(book_id), parser, cache_name)
 
 
 BOOKS = [
@@ -70,6 +74,7 @@ BOOKS = [
         ),
         pg(11, "alice_en"),
         "Russian translation by A. Rozhdestvenskaya (1909).",
+        "accessible",
     ),
     Book(
         "garden-ru",
@@ -87,6 +92,7 @@ BOOKS = [
         ),
         pg(17396, "garden_en"),
         "Russian translation by R. Rubinova (1914).",
+        "intermediate",
     ),
     Book(
         "time-ru",
@@ -104,6 +110,122 @@ BOOKS = [
         ),
         pg(35, "time_en"),
         "Russian translation by N. A. Morozov (1909).",
+        "intermediate",
+    ),
+    Book(
+        "call-wild-ru",
+        "The Call of the Wild",
+        "Зов предков",
+        "Jack London",
+        "ru-RU",
+        "Russian",
+        "RU",
+        "call-cover",
+        Source(
+            "https://ru.wikisource.org/wiki/%D0%97%D0%BE%D0%B2_%D0%BF%D1%80%D0%B5%D0%B4%D0%BA%D0%BE%D0%B2_(%D0%9B%D0%BE%D0%BD%D0%B4%D0%BE%D0%BD%3B_%D0%92%D0%B5%D1%80%D1%88%D0%B8%D0%BD%D0%B8%D0%BD%D0%B0)",
+            "https://ru.wikisource.org/wiki/%D0%97%D0%BE%D0%B2_%D0%BF%D1%80%D0%B5%D0%B4%D0%BA%D0%BE%D0%B2_(%D0%9B%D0%BE%D0%BD%D0%B4%D0%BE%D0%BD%3B_%D0%92%D0%B5%D1%80%D1%88%D0%B8%D0%BD%D0%B8%D0%BD%D0%B0)",
+            "call_ru",
+            "call-wild-ru",
+        ),
+        pg(215, "call_en", "call-wild-en"),
+        "Russian translation by Z. A. Vershinina (1928).",
+        "accessible",
+    ),
+    Book(
+        "sea-wolf-ru",
+        "The Sea-Wolf",
+        "Морской волк",
+        "Jack London",
+        "ru-RU",
+        "Russian",
+        "RU",
+        "sea-cover",
+        Source(
+            "https://ru.wikisource.org/wiki/%D0%9C%D0%BE%D1%80%D1%81%D0%BA%D0%BE%D0%B9_%D0%B2%D0%BE%D0%BB%D0%BA_(%D0%9B%D0%BE%D0%BD%D0%B4%D0%BE%D0%BD%3B_%D0%92%D0%B5%D1%80%D1%88%D0%B8%D0%BD%D0%B8%D0%BD%D0%B0)",
+            "https://ru.wikisource.org/wiki/%D0%9C%D0%BE%D1%80%D1%81%D0%BA%D0%BE%D0%B9_%D0%B2%D0%BE%D0%BB%D0%BA_(%D0%9B%D0%BE%D0%BD%D0%B4%D0%BE%D0%BD%3B_%D0%92%D0%B5%D1%80%D1%88%D0%B8%D0%BD%D0%B8%D0%BD%D0%B0)",
+            "sea_ru",
+            "sea-wolf-ru",
+        ),
+        pg(1074, "sea_en", "sea-wolf-en"),
+        "Russian translation by Z. A. Vershinina (1929).",
+        "intermediate",
+    ),
+    Book(
+        "war-worlds-ru",
+        "The War of the Worlds",
+        "Борьба миров",
+        "H. G. Wells",
+        "ru-RU",
+        "Russian",
+        "RU",
+        "war-cover",
+        Source(
+            "https://ru.wikisource.org/wiki/%D0%91%D0%BE%D1%80%D1%8C%D0%B1%D0%B0_%D0%BC%D0%B8%D1%80%D0%BE%D0%B2_(%D0%A3%D1%8D%D0%BB%D0%BB%D1%81%3B_%D0%9F%D0%B8%D0%BC%D0%B5%D0%BD%D0%BE%D0%B2%D0%B0)",
+            "https://ru.wikisource.org/wiki/%D0%91%D0%BE%D1%80%D1%8C%D0%B1%D0%B0_%D0%BC%D0%B8%D1%80%D0%BE%D0%B2_(%D0%A3%D1%8D%D0%BB%D0%BB%D1%81%3B_%D0%9F%D0%B8%D0%BC%D0%B5%D0%BD%D0%BE%D0%B2%D0%B0)",
+            "war_ru",
+            "war-worlds-ru",
+        ),
+        pg(36, "war_en", "war-worlds-en"),
+        "Russian translation by Emilia Pimenova (1927).",
+        "intermediate",
+    ),
+    Book(
+        "little-princess-ru",
+        "A Little Princess",
+        "Маленькая принцесса",
+        "Frances Hodgson Burnett",
+        "ru-RU",
+        "Russian",
+        "RU",
+        "princess-cover",
+        Source(
+            "http://az.lib.ru/b/bernett_f_e/text_1905_a_little_princess.shtml",
+            "http://az.lib.ru/b/bernett_f_e/text_1905_a_little_princess.shtml",
+            "princess_ru_complete",
+            "little-princess-ru-az",
+        ),
+        pg(146, "princess_en", "little-princess-en"),
+        "Complete Russian translation by A. N. Rozhdestvenskaya (1908).",
+        "accessible",
+    ),
+    Book(
+        "robinson-crusoe-ru",
+        "Robinson Crusoe",
+        "Робинзон Крузо",
+        "Daniel Defoe",
+        "ru-RU",
+        "Russian",
+        "RU",
+        "robinson-cover",
+        Source(
+            "https://ru.wikisource.org/wiki/%D0%A0%D0%BE%D0%B1%D0%B8%D0%BD%D0%B7%D0%BE%D0%BD_%D0%9A%D1%80%D1%83%D0%B7%D0%BE_(%D0%94%D0%B5%D1%84%D0%BE%3B_%D0%A8%D0%B8%D1%88%D0%BC%D0%B0%D1%80%D1%91%D0%B2%D0%B0)",
+            "https://ru.wikisource.org/wiki/%D0%A0%D0%BE%D0%B1%D0%B8%D0%BD%D0%B7%D0%BE%D0%BD_%D0%9A%D1%80%D1%83%D0%B7%D0%BE_(%D0%94%D0%B5%D1%84%D0%BE%3B_%D0%A8%D0%B8%D1%88%D0%BC%D0%B0%D1%80%D1%91%D0%B2%D0%B0)",
+            "robinson_ru",
+            "robinson-crusoe-ru",
+        ),
+        pg(521, "robinson_en", "robinson-crusoe-en"),
+        "Russian translation by Maria Shishmareva (1928). Chapter breaks are reconstructed from the English edition.",
+        "intermediate",
+    ),
+    Book(
+        "treasure-ru",
+        "Treasure Island",
+        "Остров сокровищ",
+        "Robert Louis Stevenson",
+        "ru-RU",
+        "Russian",
+        "RU",
+        "treasure-ru-cover",
+        Source(
+            "https://ru.wikisource.org/wiki/%D0%9E%D1%81%D1%82%D1%80%D0%BE%D0%B2_%D1%81%D0%BE%D0%BA%D1%80%D0%BE%D0%B2%D0%B8%D1%89_(%D0%A1%D1%82%D0%B8%D0%B2%D0%B5%D0%BD%D1%81%D0%BE%D0%BD%3B_%D0%9F%D0%B8%D0%BC%D0%B5%D0%BD%D0%BE%D0%B2%D0%B0)/%D0%94%D0%9E",
+            "https://ru.wikisource.org/wiki/%D0%9E%D1%81%D1%82%D1%80%D0%BE%D0%B2_%D1%81%D0%BE%D0%BA%D1%80%D0%BE%D0%B2%D0%B8%D1%89_(%D0%A1%D1%82%D0%B8%D0%B2%D0%B5%D0%BD%D1%81%D0%BE%D0%BD%3B_%D0%9F%D0%B8%D0%BC%D0%B5%D0%BD%D0%BE%D0%B2%D0%B0)/%D0%94%D0%9E",
+            "treasure_ru",
+            "treasure-island-ru",
+        ),
+        pg(120, "treasure_en", "treasure-island-en"),
+        "Russian translation by Emilia Pimenova (1916); spelling modernized for comfortable reading.",
+        "intermediate",
+        True,
     ),
     Book(
         "alice-de",
@@ -117,6 +239,7 @@ BOOKS = [
         pg(19778, "alice_de"),
         pg(11, "alice_en"),
         "German translation by Antonie Zimmermann (1869).",
+        "intermediate",
     ),
     Book(
         "treasure-de",
@@ -130,6 +253,7 @@ BOOKS = [
         pg(49424, "treasure_de"),
         pg(120, "treasure_en"),
         "German edition published in 1922.",
+        "intermediate",
     ),
     Book(
         "faust-de",
@@ -143,6 +267,7 @@ BOOKS = [
         pg(2229, "faust_de"),
         pg(14591, "faust_en"),
         "English translation by Bayard Taylor (1870–71).",
+        "advanced",
     ),
 ]
 
@@ -150,7 +275,7 @@ BOOKS = [
 class ReadingHTMLParser(HTMLParser):
     """Collect headings and paragraphs in document order."""
 
-    TAGS = {"h1", "h2", "h3", "h4", "p"}
+    TAGS = {"h1", "h2", "h3", "h4", "p", "dd"}
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -184,6 +309,7 @@ def clean_text(value: str) -> str:
     value = re.sub(r"\[Pg\.?\s*\d+\]", " ", value, flags=re.I)
     value = re.sub(r"[ \t\r\f\v]+", " ", value)
     value = re.sub(r" *\n *", "\n", value)
+    value = re.sub(r"\s+Printed in Great Britain.*$", "", value, flags=re.I | re.S)
     for marker in (
         "Источник текста:",
         "Transcriber's Note",
@@ -198,9 +324,14 @@ def clean_text(value: str) -> str:
 
 
 def fetch(source: Source) -> list[tuple[str, str]]:
-    request = urllib.request.Request(source.url, headers={"User-Agent": USER_AGENT})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        document = response.read().decode("utf-8")
+    cache_root = os.environ.get("PARALLEL_SOURCE_CACHE")
+    cache_path = Path(cache_root) / f"{source.cache_name}.html" if cache_root and source.cache_name else None
+    if cache_path and cache_path.exists():
+        document = cache_path.read_text(encoding="utf-8")
+    else:
+        request = urllib.request.Request(source.url, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(request, timeout=60) as response:
+            document = response.read().decode("utf-8")
     parser = ReadingHTMLParser()
     parser.feed(document)
     return parser.items
@@ -227,7 +358,7 @@ def make_chapter_parser(
             if following_title and not current["paragraphs"] and following_title(tag, text):
                 current["title"] = f'{current["title"]} {text}'
                 continue
-            if tag == "p" and text not in {"Image", "* * *"} and not re.fullmatch(r"\[?\d+\]?", text):
+            if tag == "p" and is_reading_paragraph(text):
                 current["paragraphs"].append(text)
         return [chapter for chapter in chapters if chapter["paragraphs"]]
 
@@ -236,6 +367,23 @@ def make_chapter_parser(
 
 LICENSE = lambda tag, text: tag.startswith("h") and "FULL PROJECT GUTENBERG" in text.upper()
 ROMAN = r"[IVXLCDM]+"
+SOURCE_BOILERPLATE_PREFIXES = (
+    "Если произведение является переводом",
+    "Исключительное право на это произведение",
+    "Поскольку Российская Федерация",
+    "Это произведение находится также в общественном достоянии",
+)
+
+
+def is_reading_paragraph(text: str) -> bool:
+    return (
+        text not in {"Image", "* * *"}
+        and not re.fullmatch(r"\[?\d+\]?", text)
+        and not re.fullmatch(r"[-=_* ]{3,}", text)
+        and not text.startswith(SOURCE_BOILERPLATE_PREFIXES)
+    )
+
+
 GERMAN_ORDINAL = (
     r"(?:Erstes|Zweites|Drittes|Viertes|Fünftes|Sechstes|Siebentes|Achtes|Neuntes|"
     r"Zehntes|Elftes|Zwölftes|Dreizehntes|Vierzehntes|Fünfzehntes|Sechzehntes|"
@@ -245,6 +393,33 @@ GERMAN_ORDINAL = (
     r"Dreißigstes|Einunddreißigstes|Zweiunddreißigstes|Dreiunddreißigstes|"
     r"Vierunddreißigstes|Fünfunddreißigstes|Sechsunddreißigstes)"
 )
+
+
+def parse_robinson_ru(items: list[tuple[str, str]]) -> list[dict]:
+    paragraphs = [
+        text for tag, text in items
+        if tag == "p" and is_reading_paragraph(text)
+    ]
+    first = next(
+        (index for index, text in enumerate(paragraphs) if text.startswith("Я родился в 1632 году")),
+        None,
+    )
+    if first is None:
+        return []
+    return [{"title": "Робинзон Крузо", "paragraphs": paragraphs[first:]}]
+
+
+def parse_princess_ru_complete(items: list[tuple[str, str]]) -> list[dict]:
+    chapters: list[dict] = []
+    current: dict | None = None
+    for tag, text in items:
+        normalized = text.replace("ХVIII", "XVIII")
+        if tag == "dd" and re.match(rf"^{ROMAN}\n", normalized):
+            current = {"title": normalized, "paragraphs": []}
+            chapters.append(current)
+        elif current and tag == "dd" and is_reading_paragraph(text):
+            current["paragraphs"].append(text)
+    return [chapter for chapter in chapters if chapter["paragraphs"]]
 
 
 PARSERS: dict[str, Callable[[list[tuple[str, str]]], list[dict]]] = {
@@ -281,6 +456,42 @@ PARSERS: dict[str, Callable[[list[tuple[str, str]]], list[dict]]] = {
             "После рассказа", "Эпилог",
         },
     ),
+    "call_en": make_chapter_parser(
+        lambda tag, text: tag == "h2" and bool(re.match(rf"^Chapter {ROMAN}\.\s", text)),
+        stop=LICENSE,
+    ),
+    "call_ru": make_chapter_parser(
+        lambda tag, text: tag == "h3" and bool(re.match(rf"^{ROMAN}\.\s", text)),
+    ),
+    "sea_en": make_chapter_parser(
+        lambda tag, text: tag == "h2" and bool(re.fullmatch(rf"CHAPTER {ROMAN}\.", text)),
+        stop=LICENSE,
+    ),
+    "sea_ru": make_chapter_parser(
+        lambda tag, text: tag == "h3" and bool(re.fullmatch(rf"Глава {ROMAN}", text)),
+    ),
+    "war_en": make_chapter_parser(
+        lambda tag, text: tag == "h2" and bool(re.match(rf"^{ROMAN}\.\n", text)),
+        stop=LICENSE,
+    ),
+    "war_ru": make_chapter_parser(
+        lambda tag, text: tag == "h3" and (bool(re.fullmatch(ROMAN, text)) or text == "Эпилог"),
+        following_title=lambda tag, text: tag == "h3" and not bool(re.fullmatch(ROMAN, text)),
+    ),
+    "princess_en": make_chapter_parser(
+        lambda tag, text: tag == "h3" and bool(re.fullmatch(r"\d+", text)),
+        stop=LICENSE,
+        following_title=lambda tag, text: tag == "h3",
+    ),
+    "princess_ru": make_chapter_parser(
+        lambda tag, text: tag == "h3" and bool(re.match(rf"^{ROMAN}\.\s", text)),
+    ),
+    "princess_ru_complete": parse_princess_ru_complete,
+    "robinson_en": make_chapter_parser(
+        lambda tag, text: tag == "h2" and bool(re.match(rf"^CHAPTER {ROMAN}\.\s", text)),
+        stop=LICENSE,
+    ),
+    "robinson_ru": parse_robinson_ru,
     "treasure_en": make_chapter_parser(
         lambda tag, text: tag == "h2" and bool(re.match(rf"^{ROMAN}\s", text)),
         stop=LICENSE,
@@ -288,6 +499,9 @@ PARSERS: dict[str, Callable[[list[tuple[str, str]]], list[dict]]] = {
     "treasure_de": make_chapter_parser(
         lambda tag, text: tag == "h3" and "Kapitel" in text,
         stop=LICENSE,
+    ),
+    "treasure_ru": make_chapter_parser(
+        lambda tag, text: tag == "h4" and bool(re.match(r"^Глава [IVXLCDM]+\.?", text)),
     ),
     "faust_de": make_chapter_parser(
         lambda tag, text: tag == "h2" and text not in {
@@ -376,6 +590,49 @@ def sentences(paragraph: str) -> list[str]:
     return pieces or [paragraph]
 
 
+def split_target_by_english_chapters(paragraphs: list[str], english: list[dict]) -> list[dict]:
+    """Reconstruct missing target chapter markers from the English length profile."""
+    target_total = sequence_length(paragraphs)
+    english_lengths = [sequence_length(chapter["paragraphs"]) for chapter in english]
+    english_total = max(1, sum(english_lengths))
+    output: list[dict] = []
+    start = 0
+    consumed_english = 0
+    consumed_target = 0
+    for index, english_length in enumerate(english_lengths):
+        consumed_english += english_length
+        if index == len(english_lengths) - 1:
+            end = len(paragraphs)
+        else:
+            target_boundary = target_total * consumed_english / english_total
+            end = start
+            while end < len(paragraphs) - (len(english_lengths) - index - 1):
+                next_length = len(paragraphs[end])
+                if end > start and consumed_target + next_length > target_boundary:
+                    break
+                consumed_target += next_length
+                end += 1
+            end = max(start + 1, end)
+        output.append({"title": f"Глава {index + 1}", "paragraphs": paragraphs[start:end]})
+        if end > start and consumed_target < sum(len(value) for value in paragraphs[:end]):
+            consumed_target = sum(len(value) for value in paragraphs[:end])
+        start = end
+    return output
+
+
+def modernize_russian_text(value: str) -> str:
+    translation = str.maketrans({"ѣ": "е", "Ѣ": "Е", "і": "и", "І": "И", "ѳ": "ф", "Ѳ": "Ф", "ѵ": "и", "Ѵ": "И"})
+    value = value.translate(translation)
+    return re.sub(r"([А-Яа-яЁё])ъ\b", r"\1", value)
+
+
+def modernize_chapters(chapters: list[dict]) -> list[dict]:
+    for chapter in chapters:
+        chapter["title"] = modernize_russian_text(chapter["title"])
+        chapter["paragraphs"] = [modernize_russian_text(value) for value in chapter["paragraphs"]]
+    return chapters
+
+
 def align_chapters(target: list[dict], english: list[dict]) -> list[dict]:
     if len(target) == len(english):
         chapter_groups = [(index, index + 1, index, index + 1) for index in range(len(target))]
@@ -386,8 +643,13 @@ def align_chapters(target: list[dict], english: list[dict]) -> list[dict]:
 
     # Reuse the alignment path, but retain chapter indexes rather than its strings.
     ratio = sum(map(int, target_lengths)) / max(1, sum(map(int, english_lengths)))
-    operations = [(1, 1, 0.0), (1, 2, 0.2), (2, 1, 0.2), (2, 2, 0.3)]
     rows, columns = len(target), len(english)
+    if rows <= columns <= rows * 2:
+        operations = [(1, 1, 0.0), (1, 2, 0.2)]
+    elif columns < rows <= columns * 2:
+        operations = [(1, 1, 0.0), (2, 1, 0.2)]
+    else:
+        operations = [(1, 1, 0.0), (1, 2, 0.2), (2, 1, 0.2), (2, 2, 0.3)]
     inf = float("inf")
     scores = [[inf] * (columns + 1) for _ in range(rows + 1)]
     previous: list[list[tuple[int, int] | None]] = [[None] * (columns + 1) for _ in range(rows + 1)]
@@ -477,6 +739,10 @@ def build_book(book: Book, cache: dict[str, list[tuple[str, str]]]) -> dict:
         english_chapters = merge_speaker_labels(english_chapters)
     if not target_chapters or not english_chapters:
         raise RuntimeError(f"No chapters parsed for {book.id}")
+    if book.target.parser == "robinson_ru":
+        target_chapters = split_target_by_english_chapters(target_chapters[0]["paragraphs"], english_chapters)
+    if book.normalize_russian_spelling:
+        target_chapters = modernize_chapters(target_chapters)
     chapters = align_chapters(target_chapters, english_chapters)
     segment_count = sum(
         len(paragraph)
@@ -490,7 +756,7 @@ def build_book(book: Book, cache: dict[str, list[tuple[str, str]]]) -> dict:
         f"→ {len(chapters)} reading chapters, {segment_count} aligned segments",
         flush=True,
     )
-    return {
+    document = {
         "id": book.id,
         "title": book.title,
         "targetTitle": book.target_title,
@@ -506,18 +772,61 @@ def build_book(book: Book, cache: dict[str, list[tuple[str, str]]]) -> dict:
         ],
         "chapters": chapters,
     }
+    return enrich_document(document, book)
+
+
+DIFFICULTY_LABELS = {
+    "accessible": "Accessible",
+    "intermediate": "Intermediate",
+    "advanced": "Advanced",
+}
+
+
+def enrich_document(document: dict, book: Book) -> dict:
+    target_text = " ".join(
+        pair[0]
+        for chapter in document["chapters"]
+        for paragraph in chapter["paragraphs"]
+        for pair in paragraph
+    )
+    word_count = len(re.findall(r"[^\W\d_]+(?:[’'-][^\W\d_]+)*", target_text, flags=re.UNICODE))
+    if word_count < 35_000:
+        length, length_label = "short", "Short"
+    elif word_count < 70_000:
+        length, length_label = "medium", "Medium"
+    else:
+        length, length_label = "long", "Long"
+    document.update({
+        "difficulty": book.difficulty,
+        "difficultyLabel": DIFFICULTY_LABELS[book.difficulty],
+        "wordCount": word_count,
+        "length": length,
+        "lengthLabel": length_label,
+    })
+    return document
 
 
 def main() -> int:
     OUTPUT.mkdir(parents=True, exist_ok=True)
     cache: dict[str, list[tuple[str, str]]] = {}
+    requested = set(sys.argv[1:])
+    known_ids = {book.id for book in BOOKS}
+    unknown = requested - known_ids
+    if unknown:
+        raise SystemExit(f"Unknown book id(s): {', '.join(sorted(unknown))}")
     catalog = []
     for book in BOOKS:
-        document = build_book(book, cache)
         path = OUTPUT / f"{book.id}.json"
+        if not requested or book.id in requested:
+            document = build_book(book, cache)
+        elif path.exists():
+            document = enrich_document(json.loads(path.read_text(encoding="utf-8")), book)
+        else:
+            raise RuntimeError(f"Missing generated book {book.id}; include it in this build")
         path.write_text(json.dumps(document, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
         catalog.append({key: document[key] for key in (
-            "id", "title", "targetTitle", "author", "language", "languageName", "flag", "cover", "editionNote"
+            "id", "title", "targetTitle", "author", "language", "languageName", "flag", "cover", "editionNote",
+            "difficulty", "difficultyLabel", "wordCount", "length", "lengthLabel",
         )} | {"chapterCount": len(document["chapters"]), "path": f"./books/{book.id}.json"})
     (OUTPUT / "catalog.json").write_text(
         json.dumps({"books": catalog}, ensure_ascii=False, indent=2) + "\n",
