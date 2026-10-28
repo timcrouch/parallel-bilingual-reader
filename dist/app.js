@@ -105,7 +105,7 @@ function renderContinueCard(book) {
 
 async function loadCatalog() {
   try {
-    const response = await fetch("./books/catalog.json?v=11");
+    const response = await fetch("./books/catalog.json?v=12");
     if (!response.ok) throw new Error(`Library returned ${response.status}`);
     catalog = (await response.json()).books;
     renderLibrary();
@@ -120,7 +120,7 @@ async function loadBook(id) {
   if (bookCache.has(id)) return bookCache.get(id);
   const metadata = catalog.find((book) => book.id === id);
   if (!metadata) throw new Error(`Unknown book: ${id}`);
-  const response = await fetch(`${metadata.path}?v=11`);
+  const response = await fetch(`${metadata.path}?v=12`);
   if (!response.ok) throw new Error(`Book returned ${response.status}`);
   const book = await response.json();
   bookCache.set(id, book);
@@ -391,7 +391,7 @@ function installHelpContent() {
     return {
       intro: "Add Parallel to your home screen and it opens full-screen, like an app.",
       steps: ["Open this page in <b>Safari</b>.", "Tap the <b>Share</b> button (square with an arrow).", "Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>."],
-      note: "",
+      note: secure ? "" : "This page is on a non-secure (http) address, so offline reading is off. Open Parallel from its https address before adding it to your Home Screen.",
     };
   }
   if (isAndroid) {

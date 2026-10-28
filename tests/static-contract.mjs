@@ -23,8 +23,12 @@ assert.match(html, /id="difficultyFilter"/, "The library must provide a difficul
 assert.match(html, /id="sortBooks"/, "The library must provide sorting controls.");
 assert.match(app, /beforeinstallprompt/, "The install control must support browser PWA installation.");
 assert.match(html, /apple-mobile-web-app-capable/, "iPhone and iPad home-screen mode must be enabled.");
+assert.match(html, /id="installModal"/, "Install help must use a readable modal instead of a transient toast.");
+assert.match(app, /Open Parallel from its https address before adding it to your Home Screen\./, "iPhone and iPad install help must warn when offline support is unavailable over HTTP.");
 assert.equal(manifest.display, "standalone", "The installed app must launch without browser chrome.");
 assert.ok(manifest.icons.some((icon) => icon.sizes === "512x512"), "The PWA must provide a 512px app icon.");
+assert.match(worker, /key\.startsWith\(CACHE_PREFIX\)/, "The service worker must only delete old Parallel caches.");
+assert.match(worker, /catalog\.books\.map/, "The service worker must pre-cache every bundled book for offline reading.");
 
 const nightBodyRule = css.match(/body\[data-theme="night"\]\s*\{([\s\S]*?)\}/)?.[1] || "";
 assert.match(nightBodyRule, /color\s*:\s*var\(--ink\)/, "Dark mode must explicitly apply its ink colour to the whole page.");
