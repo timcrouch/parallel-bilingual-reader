@@ -227,7 +227,7 @@ body[data-theme="night"] .theme-icon-sun { display:block; }
 .rights-note { display:flex; gap:10px; margin:20px 0; color:var(--muted); font-size:9px; line-height:1.5; }.rights-note svg{width:18px;flex:none;color:var(--sage-dark)}
 .modal-submit { width:100%; justify-content:center; }.modal-submit:disabled{opacity:.45;cursor:not-allowed;transform:none}
 .prototype-note { margin:12px 0 0; color:#8a7c70; text-align:center; font-size:9px; line-height:1.5; }
-.toast { position:fixed; left:50%; bottom:28px; padding:11px 16px; background:var(--ink); color:white; border-radius:4px; font-size:11px; z-index:80; transform:translate(-50%,30px); opacity:0; pointer-events:none; transition:.25s; }.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast { position:fixed; left:50%; bottom:max(28px, calc(env(safe-area-inset-bottom) + 16px)); width:max-content; max-width:calc(100% - 32px); padding:12px 18px; background:#1f2420; color:#f3f1ea; border-radius:8px; font-size:14px; line-height:1.4; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,.35); z-index:80; transform:translate(-50%,30px); opacity:0; pointer-events:none; transition:.25s; }.toast.show{opacity:1;transform:translate(-50%,0)}
 
 body[data-theme="white"] .reader-screen, body[data-theme="white"] .reader-header { --page:#f9f9f7; --ink:#171916; --muted:#555752; --line:#d1d2cc; background:#f9f9f7; }
 body[data-theme="night"] {
@@ -295,3 +295,9 @@ body[data-theme="night"] .theme-dot { border-color:#5a615c; }
   .section-heading{margin-top:48px}.book-grid{grid-template-columns:1fr;row-gap:30px}.book-card{grid-template-columns:92px 1fr}.book-cover{width:92px;height:137px}.add-book-card{min-height:120px}
   .reader-header{height:64px;grid-template-columns:auto 1fr auto;padding:0 9px}.reader-book-title{padding:0 7px}.reader-book-title strong{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:145px}.reader-tools .icon-button{display:none}.reader-tools .theme-toggle{display:grid}.language-chip #languageName{display:none}.reader-progress{top:64px}.reading-page{width:calc(100% - 36px);padding:52px 0 100px}.reading-instruction{font-size:9px;margin-bottom:40px;text-align:center}#readerContent{font-size:max(var(--reading-size),22px);line-height:1.72;letter-spacing:.001em}.reader-nav{margin:-60px 19px 0}.translation-sheet{padding-left:20px;padding-right:20px}.target-quote{font-size:19px;margin:10px 0}.english-block{margin-top:16px;padding:14px 16px}.english-block p{font-size:17px}.modal{padding:24px}.modal h2{font-size:29px}
 }
+
+.install-steps { margin:18px 0 0; padding-left:22px; font-size:15px; line-height:1.6; }
+.install-steps li { margin-bottom:8px; }
+.install-note { margin:16px 0 0; padding:12px 14px; border-left:2px solid var(--sage-dark); background:rgba(65,75,68,.08); color:var(--muted); font-size:13px; line-height:1.5; }
+.install-modal .modal-submit { margin-top:22px; }
+body[data-theme="night"] .toast { background:#e9ebe5; color:#1c1f1c; }

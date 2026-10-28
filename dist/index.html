@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon-180.png" />
-    <link rel="stylesheet" href="./styles.css?v=10" />
+    <link rel="stylesheet" href="./styles.css?v=11" />
     <title>Parallel — bilingual reading</title>
   </head>
   <body data-theme="eink">
@@ -153,8 +153,16 @@
         <p class="prototype-note">Prototype note: the reader experience is fully interactive; automated whole-book translation will be connected in the next build.</p>
       </div>
 
+      <div class="modal install-modal" id="installModal" role="dialog" aria-modal="true" aria-labelledby="installTitle" aria-hidden="true">
+        <div class="modal-head"><div><p class="eyebrow">HOME SCREEN</p><h2 id="installTitle">Install Parallel</h2></div><button class="icon-button" id="closeInstall" aria-label="Close"><svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></svg></button></div>
+        <p class="modal-intro" id="installIntro"></p>
+        <ol class="install-steps" id="installSteps"></ol>
+        <p class="install-note" id="installNote" hidden></p>
+        <button class="primary-button modal-submit" id="installDone">Got it</button>
+      </div>
+
       <div class="toast" id="toast" role="status"></div>
     </div>
-    <script src="./app.js?v=10"></script>
+    <script src="./app.js?v=11"></script>
   </body>
 </html>

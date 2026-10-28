@@ -105,7 +105,7 @@ function renderContinueCard(book) {
 
 async function loadCatalog() {
   try {
-    const response = await fetch("./books/catalog.json?v=10");
+    const response = await fetch("./books/catalog.json?v=11");
     if (!response.ok) throw new Error(`Library returned ${response.status}`);
     catalog = (await response.json()).books;
     renderLibrary();
@@ -120,7 +120,7 @@ async function loadBook(id) {
   if (bookCache.has(id)) return bookCache.get(id);
   const metadata = catalog.find((book) => book.id === id);
   if (!metadata) throw new Error(`Unknown book: ${id}`);
-  const response = await fetch(`${metadata.path}?v=10`);
+  const response = await fetch(`${metadata.path}?v=11`);
   if (!response.ok) throw new Error(`Book returned ${response.status}`);
   const book = await response.json();
   bookCache.set(id, book);
@@ -335,7 +335,7 @@ $("#installButton").addEventListener("click", async () => {
     deferredInstallPrompt = null;
     return;
   }
-  showToast("On iPhone or iPad: tap Share, then Add to Home Screen.");
+  openInstallHelp();
 });
 
 $("#continueButton").addEventListener("click", (event) => renderReader(event.currentTarget.dataset.openBook));
@@ -382,6 +382,46 @@ $("#fileInput").addEventListener("change", (event) => {
   $("#chosenFile").textContent = validSize ? `Selected: ${file.name}` : `${file.name} is larger than 20 MB.`;
   $("#prepareBook").disabled = !validSize;
 });
+function installHelpContent() {
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/.test(ua);
+  const secure = window.isSecureContext;
+  if (isIOS) {
+    return {
+      intro: "Add Parallel to your home screen and it opens full-screen, like an app.",
+      steps: ["Open this page in <b>Safari</b>.", "Tap the <b>Share</b> button (square with an arrow).", "Scroll down and tap <b>Add to Home Screen</b>, then <b>Add</b>."],
+      note: "",
+    };
+  }
+  if (isAndroid) {
+    return {
+      intro: "Add Parallel to your home screen from Chrome’s menu.",
+      steps: ["Tap the <b>⋮</b> menu at the top right of Chrome.", "Tap <b>Install app</b> or <b>Add to home screen</b>.", "Confirm with <b>Install</b> or <b>Add</b>."],
+      note: secure ? "" : "This page is on a non-secure (http) address, so Chrome adds a shortcut that opens in the browser rather than a full-screen app, and offline reading is off. Open Parallel from its https address to install the full app.",
+    };
+  }
+  return {
+    intro: "Install Parallel as an app on this computer.",
+    steps: ["In Chrome or Edge, click the <b>install</b> icon at the right end of the address bar, or open the browser menu and choose <b>Install Parallel</b>.", "On a phone, open this same address and tap the install button."],
+    note: secure ? "" : "This page is on a non-secure (http) address, so browsers won’t offer a full install. Open Parallel from its https address to install it.",
+  };
+}
+
+function openInstallHelp() {
+  closePanels();
+  const { intro, steps, note } = installHelpContent();
+  $("#installIntro").textContent = intro;
+  $("#installSteps").innerHTML = steps.map((step) => `<li>${step}</li>`).join("");
+  $("#installNote").textContent = note;
+  $("#installNote").hidden = !note;
+  $("#installModal").classList.add("open");
+  $("#installModal").setAttribute("aria-hidden", "false");
+  $("#scrim").classList.add("active");
+}
+$("#closeInstall").addEventListener("click", closePanels);
+$("#installDone").addEventListener("click", closePanels);
+
 $("#prepareBook").addEventListener("click", () => { closePanels(); showToast("Book selected — automated translation is the next build step."); });
 $("#prevPage").addEventListener("click", () => changeChapter(-1));
 $("#nextPage").addEventListener("click", () => changeChapter(1));
